@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const { Pool } = require('pg')
 const morgan = require('morgan')
+const client = require('prom-client')
 require('dotenv').config()
 
 const PORT = process.env.PORT || 8081
@@ -27,6 +28,8 @@ const app = express()
 app.use(express.json({ limit: '1mb' }))
 app.use(morgan('combined'))
 
+client.collectDefaultMetrics()
+
 app.get('/health', async (req, res) => {
   try {
     await pool.query('SELECT 1')
@@ -34,6 +37,11 @@ app.get('/health', async (req, res) => {
   } catch (err) {
     res.status(500).json({ status: 'error', error: err.message })
   }
+})
+
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', client.register.contentType)
+  res.end(await client.register.metrics())
 })
 
 app.post('/auth/register', async (req, res) => {

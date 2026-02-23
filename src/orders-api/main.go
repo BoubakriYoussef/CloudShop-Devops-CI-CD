@@ -11,6 +11,7 @@ import (
 
   "github.com/gorilla/mux"
   "github.com/jackc/pgx/v5/pgxpool"
+  "github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Order struct {
@@ -44,6 +45,7 @@ func main() {
 
   r := mux.NewRouter()
   r.HandleFunc("/health", healthHandler).Methods("GET")
+  r.Handle("/metrics", promhttp.Handler()).Methods("GET")
   r.HandleFunc("/orders", listOrders).Methods("GET")
   r.HandleFunc("/orders", createOrder).Methods("POST")
   r.HandleFunc("/orders/{id}", getOrder).Methods("GET")

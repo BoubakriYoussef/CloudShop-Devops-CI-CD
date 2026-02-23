@@ -1,0 +1,40 @@
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: frontend-chaos
+  namespace: cloudshop-prod
+spec:
+  appinfo:
+    appns: cloudshop-prod
+    applabel: 'app=frontend'
+    appkind: deployment
+  engineState: 'active'
+  chaosServiceAccount: litmus-admin
+  experiments:
+  - name: pod-delete
+    spec:
+      components:
+        env:
+        - name: TOTAL_CHAOS_DURATION
+          value: '30'
+        - name: CHAOS_INTERVAL
+          value: '10'
+        - name: FORCE
+          value: 'false'
+        - name: PODS_AFFECTED_PERC
+          value: '50'
+      probe:
+      - name: check-frontend-availability
+        type: httpProbe
+        httpProbe/inputs:
+          url: http://frontend.cloudshop-prod.svc.cluster.local
+          insecureSkipVerify: true
+          method:
+            get:
+              criteria: ==
+              responseCode: "200"
+        mode: Continuous
+        runProperties:
+          probeTimeout: 5
+          interval: 2
+          retry: 1

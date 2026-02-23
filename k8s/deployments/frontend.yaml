@@ -50,3 +50,17 @@ spec:
           capabilities:
             add:
             - NET_BIND_SERVICE
+      - name: nginx-metrics
+        image: nginx/nginx-prometheus-exporter:0.11.0
+        args:
+        - --nginx.scrape-uri=http://127.0.0.1:8080/stub_status
+        ports:
+        - containerPort: 9113
+          name: metrics
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "25m"
+          limits:
+            memory: "64Mi"
+            cpu: "100m"

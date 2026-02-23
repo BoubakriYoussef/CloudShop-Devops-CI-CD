@@ -2,9 +2,11 @@ import os
 from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel
 import psycopg2
 from psycopg2.pool import SimpleConnectionPool
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, REGISTRY
 
 try:
     from elasticsearch import Elasticsearch
@@ -75,6 +77,10 @@ def health():
         except Exception:
             es_ok = False
     return {"status": "ok", "elasticsearch": es_ok}
+
+@app.get('/metrics')
+def metrics():
+    return Response(generate_latest(REGISTRY), media_type=CONTENT_TYPE_LATEST)
 
 @app.get('/products', response_model=List[ProductOut])
 def list_products():

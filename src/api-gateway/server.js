@@ -3,6 +3,7 @@ const cors = require('cors')
 const rateLimit = require('express-rate-limit')
 const morgan = require('morgan')
 const { createProxyMiddleware } = require('http-proxy-middleware')
+const client = require('prom-client')
 require('dotenv').config()
 
 const PORT = process.env.PORT || 8080
@@ -11,6 +12,8 @@ const PRODUCTS_SERVICE_URL = process.env.PRODUCTS_SERVICE_URL || 'http://product
 const ORDERS_SERVICE_URL = process.env.ORDERS_SERVICE_URL || 'http://orders-api:8083'
 
 const app = express()
+
+client.collectDefaultMetrics()
 
 app.use(cors())
 app.use(express.json({ limit: '1mb' }))
@@ -26,6 +29,11 @@ app.use(limiter)
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', services: { auth: AUTH_SERVICE_URL, products: PRODUCTS_SERVICE_URL, orders: ORDERS_SERVICE_URL } })
+})
+
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', client.register.contentType)
+  res.end(await client.register.metrics())
 })
 
 function proxyWithBody(target, opts = {}) {
