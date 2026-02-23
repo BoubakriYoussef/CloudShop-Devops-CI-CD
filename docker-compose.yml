@@ -1,0 +1,110 @@
+version: '3.9'
+
+networks:
+  cloudshop-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: cloudshop-postgres
+    environment:
+      POSTGRES_DB: cloudshop
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - cloudshop-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d cloudshop"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+
+  auth-service:
+    build:
+      context: ./src/auth-service
+      dockerfile: Dockerfile
+    container_name: cloudshop-auth
+    environment:
+      PORT: 8081
+      DATABASE_URL: postgresql://admin:${POSTGRES_PASSWORD:-changeme}@postgres:5432/cloudshop
+      JWT_SECRET: ${JWT_SECRET:-secret-key-change-in-prod}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cloudshop-net
+    ports:
+      - "8081:8081"
+
+  products-api:
+    build:
+      context: ./src/products-api
+      dockerfile: Dockerfile
+    container_name: cloudshop-products
+    environment:
+      PORT: 8082
+      DATABASE_URL: postgresql://admin:${POSTGRES_PASSWORD:-changeme}@postgres:5432/cloudshop
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cloudshop-net
+    ports:
+      - "8082:8082"
+
+  orders-api:
+    build:
+      context: ./src/orders-api
+      dockerfile: Dockerfile
+    container_name: cloudshop-orders
+    environment:
+      PORT: 8083
+      DATABASE_URL: postgresql://admin:${POSTGRES_PASSWORD:-changeme}@postgres:5432/cloudshop
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cloudshop-net
+    ports:
+      - "8083:8083"
+
+  api-gateway:
+    build:
+      context: ./src/api-gateway
+      dockerfile: Dockerfile
+    container_name: cloudshop-gateway
+    environment:
+      PORT: 8080
+      AUTH_SERVICE_URL: http://auth-service:8081
+      PRODUCTS_SERVICE_URL: http://products-api:8082
+      ORDERS_SERVICE_URL: http://orders-api:8083
+    depends_on:
+      - auth-service
+      - products-api
+      - orders-api
+    networks:
+      - cloudshop-net
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile
+    container_name: cloudshop-frontend
+    environment:
+      VITE_API_URL: http://localhost:8080
+    depends_on:
+      - api-gateway
+    networks:
+      - cloudshop-net
+    ports:
+      - "3000:8080"

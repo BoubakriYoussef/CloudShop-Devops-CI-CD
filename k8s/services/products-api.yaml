@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: products-service
+  namespace: cloudshop-prod
+  labels:
+    app: products-api
+spec:
+  type: ClusterIP
+  selector:
+    app: products-api
+  ports:
+  - name: http
+    port: 8082
+    targetPort: 8082

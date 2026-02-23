@@ -1,0 +1,13 @@
+bin
+tmp
+*.log
+.git
+.gitignore
+README.md
+.env
+.env.local
+Dockerfile
+docker-compose.yml
+*.md
+.vscode
+.idea
