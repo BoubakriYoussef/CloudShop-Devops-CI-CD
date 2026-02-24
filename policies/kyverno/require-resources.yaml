@@ -18,6 +18,13 @@ spec:
       - resources:
           kinds:
           - Pod
+    exclude:
+      any:
+      - resources:
+          namespaces:
+          - argocd
+          - kyverno
+          - monitoring
     validate:
       message: "CPU and memory requests/limits are required."
       pattern:
