@@ -10,8 +10,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # On force le nom en minuscules dès le départ pour éviter les erreurs de référence
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build-and-sign:
@@ -39,9 +37,9 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set image name lowercase
+        # Cette étape est CRUCIALE : elle transforme "BoubakriYoussef/CloudShop..." en "boubakriyoussef/cloudshop..."
         run: |
-          # On s'assure que le nom du repo est en minuscules pour GHCR
-          echo "IMAGE_NAME_LC=${IMAGE_NAME,,}" >> $GITHUB_ENV
+          echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
 
       - name: Extract metadata
         id: meta
@@ -58,6 +56,7 @@ jobs:
         with:
           context: ./src/${{ matrix.service }}
           push: true
+          # On utilise bien le nom en minuscules ici
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -70,10 +69,10 @@ jobs:
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
           COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
-          DIGEST: ${{ steps.build.outputs.digest }}
         run: |
-          # Construction propre de la référence avec le digest
-          IMAGE_REF="${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}/${{ matrix.service }}@${{ env.DIGEST }}"
+          # On force l'utilisation de la variable IMAGE_NAME_LC (en minuscules)
+          IMAGE_REF="${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}/${{ matrix.service }}@${{ steps.build.outputs.digest }}"
+          
           echo "Signing image: $IMAGE_REF"
           
           echo "$COSIGN_PRIVATE_KEY" > cosign.key
@@ -83,7 +82,6 @@ jobs:
       - name: Generate SBOM with Syft
         run: |
           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
-          # Utilisation de la version extraite par meta pour le scan SBOM
           syft ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}/${{ matrix.service }}:${{ steps.meta.outputs.version }} \
             -o spdx-json > sbom.json
 
@@ -91,9 +89,8 @@ jobs:
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
           COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
-          DIGEST: ${{ steps.build.outputs.digest }}
         run: |
-          IMAGE_REF="${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}/${{ matrix.service }}@${{ env.DIGEST }}"
+          IMAGE_REF="${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}/${{ matrix.service }}@${{ steps.build.outputs.digest }}"
           echo "$COSIGN_PRIVATE_KEY" > cosign.key
           cosign attest --predicate sbom.json --key cosign.key --yes "$IMAGE_REF"
           rm cosign.key
